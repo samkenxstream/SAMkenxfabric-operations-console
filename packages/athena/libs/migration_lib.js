@@ -260,6 +260,7 @@ module.exports = function (logger, ev, t) {
 						logger.error('[migration lib] cannot edit settings doc to clear migration status:', err_writeDoc);
 						return cb({ statusCode: 500, msg: 'could not update settings doc to clear migration status', details: err_writeDoc }, null);
 					} else {
+						t.pillow.reconnect();					// make sure the couchdb stream is working by simply reconnecting now
 						return cb(null, settings_doc);
 					}
 				});
@@ -557,6 +558,7 @@ module.exports = function (logger, ev, t) {
 							message: 'migration timeout exceeded',
 						};
 						t.pillow.broadcast(msg);
+						return cb(null);
 					} else {
 						const subtype = pillow_doc ? pillow_doc.sub_type : '-';
 						logger.debug('[migration watchdog] migration is still progressing... checking step', subtype);
@@ -568,6 +570,7 @@ module.exports = function (logger, ev, t) {
 						} else if (subtype === 'console') {
 							exports.check_console(pillow_doc);
 						}
+						return cb(null);
 					}
 				}
 			});
@@ -1310,6 +1313,8 @@ module.exports = function (logger, ev, t) {
 						if (doc.feature_flags) {
 							doc.feature_flags.migration_enabled = false;
 							doc.feature_flags.read_only_enabled = false;
+							doc.feature_flags.mustgather_enabled = true;
+							doc.feature_flags.osnadmin_feats_enabled = true;
 						}
 
 						// create the user login for the new console
@@ -1334,7 +1339,7 @@ module.exports = function (logger, ev, t) {
 						}
 						if (defaults) {
 							const overwrite_fields = [
-								'activity_tracker_path', 'db_custom_names', 'db_defaults', 'default_user_password_initial',
+								'activity_tracker_filename', 'db_custom_names', 'db_defaults', 'default_user_password_initial',
 								'dynamic_tls', 'ibmid', 'migration_status', 'infrastructure', 'max_components',
 								'max_req_per_min', 'max_req_per_min_ak', 'the_default_resources_map'
 							];

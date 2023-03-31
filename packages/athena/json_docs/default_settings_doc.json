@@ -6,7 +6,7 @@
 	],
 	"auto_fab_up_exp_too_close_days": 5,
 	"access_list": {},
-	"activity_tracker_path": "./logs/audit.log",
+	"activity_tracker_filename": "audit.log",
 	"app_id": {
 		"client_id": "-",
 		"oauth_url": "http://example.com",
@@ -134,12 +134,13 @@
 		"default-src *.medallia.eu",
 		"font-src 'self' *.s81c.com fonts.gstatic.com",
 		"frame-ancestors 'none'",
+		"object-src 'none'",
 		"img-src 'self' *.ibm.com appboy-images.com *.medallia.eu",
 		"script-src 'self' 'unsafe-eval' 'unsafe-inline' *.ibm.com api.segment.com cdn.segment.com console.bluemix.net *.braze.com lpcdn.lpsnmedia.net *.liveperson.net *.medallia.eu *.kampyle.com",
 		"style-src 'self' 'unsafe-inline' *.ibm.com *.medallia.eu"
 	],
 	"host_url": "http://localhost:3000",
-	"host_white_list": [
+	"url_safe_list": [
 		".*"
 	],
 	"hsm": null,
@@ -208,6 +209,11 @@
 	"proxy_tls_ws_url": null,
 	"proxy_cache_enabled": true,
 	"regex": {
+		"is_email": {
+			"source": "^\\S+@\\S+\\.\\S+$",
+			"flags": "i",
+			"notes": "simple email addr validation, good enough for our purposes"
+		},
 		"is_grpc_url": {
 			"source": "^grpcs?://[\\w-._~]+:\\d{1,5}$",
 			"flags": "i",

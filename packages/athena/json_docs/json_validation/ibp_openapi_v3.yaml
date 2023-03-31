@@ -83,9 +83,9 @@ x-validate_error_messages:
   invalid_certificate: "Expected parameter '$PROPERTY_NAME' to be a Base64 encoded PEM-string."
 
   # when the resource units are bad, OR the value is crazy (too high or negative)
-  invalid_cpu_units: "Parameter '$PROPERTY_NAME' must be a valid CPU value. Try values similar to '250m' or '0.25'."
-  invalid_memory_units: "Parameter '$PROPERTY_NAME' must be a valid memory value. Try values similar to '1GiB' or '1024MiB'."
-  invalid_storage_units: "Parameter '$PROPERTY_NAME' must be a valid storage value. Try values similar to '128GiB' or '131072MiB'."
+  invalid_cpu_units: "Parameter '$PROPERTY_NAME' is malformed or outside the acceptable range. Must be less than 100CPU but greater than 0.01CPU. A typical value is '200m' or '0.2'."
+  invalid_memory_units: "Parameter '$PROPERTY_NAME' is malformed or outside the acceptable range. Must be less than 32GB but greater than 1B. A typical value is '0.39GiB' or '400MiB'."
+  invalid_storage_units: "Parameter '$PROPERTY_NAME' is malformed or outside the acceptable range. Must be less than 10TB but greater than 1B. A typical value is '20GiB' or '20480MiB'."
 
   # when the deployment resource requests are less than the upper limits
   invalid_requests_for_limits: "Parameter '$PROPERTY_NAME' is invalid. 'requests' must be <= 'limits'. requests: '$REQUESTS', limits: '$LIMITS'."
@@ -100,6 +100,7 @@ x-validate_error_messages:
   regex_fail_host_and_port: The field '$PROPERTY_NAME' must be a url including the hostname/ip and port. Do not include the protocol.
   regex_fail_start_non_letter: The field '$PROPERTY_NAME' must start with a letter.
   regex_fail_valid_id: The field '$PROPERTY_NAME' must start with a letter, be lowercase and only contain letters, numbers, dashes or underscores.
+  regex_invalid_email: The field '$PROPERTY_NAME' is not a valid email address.
 
   # fall back regular expression failure (when the desired regex error message is not found, like I forgot to write one)
   regex_generic_error: "Parameter '$PROPERTY_NAME' is malformed."
@@ -142,7 +143,7 @@ x-validate_error_messages:
   too_many_keys: "Too many fields in body. This API only supports 1 field in the body. Use multiple apis to update multiple fields."
 
   # this value must be a known hostname, typically from an imported or deployed CA
-  unknown_enroll_host: "The parameter '$PROPERTY_NAME' was not found in the list of known hostnames. Import the CA using this hostname or use a hostname that is already known."
+  unknown_enroll_host: "The parameter '$PROPERTY_NAME' was not found in the list of known urls. Import a CA using this host & port or change the host and port in this request to a known one."
 
   # it is invalid to upgrade fabric from version x to y
   invalid_fabric_upgrade: "Invalid '$PROPERTY_NAME' value. Upgrading Fabric from '$VALUE' to '$VALUE2' is a potentially breaking update. Read the Fabric docs for details. You can override this by setting \"ignore_warnings\" to true."
@@ -6156,7 +6157,7 @@ paths:
               examples:
                 response:
                   value:
-                    ACTIVITY_TRACKER_PATH: /logs
+                    ACTIVITY_TRACKER_FILENAME: /logs
                     ATHENA_ID: 17v7e
                     AUTH_SCHEME: iam
                     CALLBACK_URI: /auth/cb
@@ -6460,7 +6461,7 @@ paths:
               examples:
                 response:
                   value:
-                    ACTIVITY_TRACKER_PATH: /logs
+                    ACTIVITY_TRACKER_FILENAME: /logs
                     ATHENA_ID: 17v7e
                     AUTH_SCHEME: iam
                     CALLBACK_URI: /auth/cb
@@ -13994,6 +13995,18 @@ components:
       type: object
       x-validate_no_extra_keys: true
       properties:
+        admin_contact_email:
+          type: string
+          example: no-reply@domain.com
+          description: The email address of the owner of this console.
+          x-validate_regex_must_pass: is_email # fabric-ca does not support these characters - (can't find source of claim)
+          x-validate_regex_error_msg: regex_invalid_email # fabric-ca does not support these characters - (can't find source of claim)
+        default_user_password:
+          type: string
+          example: password
+          description: This is the password a user would use when they login to the console for the first time.
+          minLength: 10
+          maxLength: 128
         inactivity_timeouts:
           type: object
           properties:
@@ -14007,6 +14020,15 @@ components:
               minimum: 60000 # 1 minute - a "large" minimum delay prevents immediate logout (which would be a lockout of sorts)
               maximum: 28800000 # 8 hours
               example: 90000
+        transaction_visibility:
+          type: object
+          properties:
+            hide_input:
+              type: boolean
+              example: false
+            hide_output:
+              type: boolean
+              example: false
         file_logging:
           $ref: '#/components/schemas/EditLogSettingsBody'
         max_req_per_min:
@@ -14659,7 +14681,7 @@ components:
       type: object
       description: Contains the details of all public settings for the UI
       properties:
-        ACTIVITY_TRACKER_PATH:
+        ACTIVITY_TRACKER_FILENAME:
           type: string
           description: The path to the activity tracker file. This file holds details of all activity. Defaults to '?' (disabled).
           example: '/logs'
@@ -15602,7 +15624,7 @@ components:
           example: 256MiB
           x-validate_memory: true
           x-minimum: 1
-          x-maximum: 107374182400
+          x-maximum: 34359738368 # dsh abuse limit of 32GB, just b/c
           description: Desired memory for subcomponent. [Resource details](/docs/blockchain?topic=blockchain-ibp-console-govern-components#ibp-console-govern-components-allocate-resources)
 
     ResourceLimits:
@@ -15620,7 +15642,7 @@ components:
           example: 256MiB
           x-validate_memory: true
           x-minimum: 1
-          x-maximum: 107374182400
+          x-maximum: 34359738368 # dsh abuse limit of 32GB, just b/c
           description: Maximum memory for subcomponent. Must be >= "requests.memory". Defaults to the same value in "requests.memory". [Resource details](/docs/blockchain?topic=blockchain-ibp-console-govern-components#ibp-console-govern-components-allocate-resources)
 
     StorageObject:
@@ -15630,7 +15652,7 @@ components:
           type: string
           example: 4GiB
           x-minimum: 1
-          x-maximum: 10995116277760
+          x-maximum: 10995116277760 # dsh abuse limit of 10TB, just b/c
           x-validate_storage: true
           description: Maximum disk space for subcomponent. [Resource details](/docs/blockchain?topic=blockchain-ibp-console-govern-components#ibp-console-govern-components-allocate-resources)
         class:

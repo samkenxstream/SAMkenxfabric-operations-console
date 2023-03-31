@@ -331,7 +331,7 @@ module.exports = function (logger, ev, t) {
 			const doc_to_write = {
 				_id: 'k' + t.misc.generateRandomString(15),		// this is the api key, must start with a letter
 				roles: lc_roles,
-				description: req.body.description || '-',
+				description: t.misc.safe_str(req.body.description) || '-',
 				//debug_api_secret_plain_text: secret,			// do not uncomment unless testing
 				salt: secret_details.salt,
 				hashed_secret: secret_details.hashed_secret,
@@ -465,7 +465,7 @@ module.exports = function (logger, ev, t) {
 					// validate the new password
 					const uuid = t.middleware.getUuid(req);
 					const email = find_users_email(uuid, settings_doc);
-					if (!email) {
+					if (!email && !req._dry_run) {
 						input_errors.push('user by uuid does not exist: ' + encodeURI(uuid));
 					} else {
 						req.body.desired_pass = typeof req.body.desired_pass === 'string' ? req.body.desired_pass.trim() : '';	// protect user from whitespace

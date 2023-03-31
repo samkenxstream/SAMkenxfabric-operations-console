@@ -60,6 +60,7 @@ let server_settings = {};
 let sessionMiddleware = null;
 let couch_interval = null;
 let migration_interval = null;
+let migration_timeout = null;
 const http_metrics_route = '/api/v[123]/http_metrics/:days?';
 const healthcheck_route = '/api/v3/healthcheck';
 const metric_opts = {
@@ -74,6 +75,7 @@ const metric_opts = {
 	healthcheck_route: healthcheck_route
 };
 const maxSize = '25mb';
+const grpcMaxSize = '100mb';
 let load_cache_interval = null;
 let check_tls_interval = null;
 let load_cache_timer = null;
@@ -131,8 +133,8 @@ app.use(bodyParser.text({ type: 'text/html', limit: maxSize }));
 app.use(['/api/', '/ak/'], bodyParser.text({ type: 'text/plain', limit: maxSize }));
 app.use(bodyParser.json({ limit: maxSize }));
 app.use(bodyParser.urlencoded({ extended: true, limit: maxSize }));
-app.use(bodyParser.raw({ type: 'application/grpc-web+proto', limit: maxSize }));	// leave as buffer (w/o this line req.body is empty)
-app.use('/proxy/', bodyParser.raw({ type: 'multipart/form-data', limit: maxSize }));// leave as buffer (w/o this line req.body is empty)
+app.use(bodyParser.raw({ type: 'application/grpc-web+proto', limit: grpcMaxSize }));	// leave as buffer (w/o this line req.body is empty)
+app.use('/proxy/', bodyParser.raw({ type: 'multipart/form-data', limit: grpcMaxSize }));// leave as buffer (w/o this line req.body is empty)
 app.set('env', 'production');														// don't echo express errors to the client
 app.use(compression());
 look_for_couchdb(() => {
@@ -258,6 +260,7 @@ function setup_routes_and_start() {
 
 	// http_metrics needs to be one of the first app.use() instances, as soon as possible after ev.update()
 	app.use(tools.http_metrics.start);
+	app.use(tools.http_metrics.start_err);
 	app.use(setHeaders);
 
 	// --- Graceful Shutoff --- // - this route should be right after http_metrics
@@ -459,11 +462,18 @@ function setup_routes_and_start() {
 		res.send(tools.fs.readFileSync(tools.path.join(__dirname, req.path)));		// used to debug versions, only logged in users
 	});
 
-	// json parsing error
+	//---------------------------------------------------------------------------------------------
+	// [Handle body-parser errors]
+	//---------------------------------------------------------------------------------------------
+	// make sure to set 4 params here, the unusual one is the error param and this is to handle body parser errors
+	// otherwise they are silent/absorbed...!
 	app.use((error, req, res, next) => {
-		if (error && error.toString().includes('Unexpected token')) {				// body parser creates this error if given malformed json
-			logger.error('[body-parser.js] invalid json', error.toString());
+		if (error && error.toString().includes('Unexpected token')) {			// body parser creates this error if given malformed json
+			logger.error('[' + req._tx_id + '] bodyParser error - invalid json', error.toString());
 			return res.status(400).json({ statusCode: 400, msg: 'invalid json', details: error.toString() });
+		} else if (error) {
+			logger.error('[' + req._tx_id + '] req has error', error.toString());
+			return res.status(400).json({ statusCode: 400, msg: 'input error', details: error.toString() });
 		} else {
 			return next();
 		}
@@ -802,10 +812,11 @@ function setup_pillow_talk() {
 		if (doc.message_type === 'monitor_migration') {
 			logger.debug('[pillow] - received message to start monitoring ' + doc.sub_type + ' progress, interval: ', ev.MIGRATION_MON_INTER_SECS, 'secs');
 			clearInterval(migration_interval);
-			setTimeout(() => {
-				if (doc.quick) {
-					tools.migration_lib.check_migration_status(doc);			// call it now if its a quick step
-				}
+			clearTimeout(migration_timeout);
+			migration_timeout = setTimeout(() => {
+				//if (doc.quick) {
+				//	tools.migration_lib.check_migration_status(doc);			// call it now if its a quick step
+				//}
 
 				migration_interval = setInterval(() => {
 					tools.migration_lib.check_migration_status(doc);
@@ -817,6 +828,7 @@ function setup_pillow_talk() {
 		if (doc.message_type === 'monitor_migration_stop') {
 			logger.debug('[pillow] - received message to stop or pause monitoring migration progress');
 			clearInterval(migration_interval);
+			clearTimeout(migration_timeout);
 		}
 	});
 }
@@ -861,7 +873,14 @@ function make_rate_limiter(log_msg, max_req) {
 // Debug Logs - fires on most routes
 //---------------------
 function setup_debug_log() {
-	app.use(function (req, res, next) {
+	app.use(function (err, req, res, next) {			// we have to register function with 4 inputs (has error)
+		return log_req(err, req, res, next);
+	});
+	app.use(function (req, res, next) {					// and we have to register function with 3 inputs (no error)
+		return log_req(null, req, res, next);
+	});
+
+	function log_req(err, req, res, next) {
 		req._tx_id = tools.ot_misc.buildTxId(req); 						// make an id that follows this requests journey, gets logged
 		req._orig_headers = JSON.parse(JSON.stringify(req.headers));	// store original headers, b/c we might rewrite the authorization header
 		req._notifications = [];										// create an array to store athena notifications generated by the request
@@ -875,17 +894,21 @@ function setup_debug_log() {
 			}
 		}
 
-		if (req.path.includes(healthcheck_route)) {						// avoid spamming logs with the healtcheck api
+		if (req.path.includes(healthcheck_route)) {						// avoid spamming logs with the healthcheck api
 			print_log = false;
 		}
 
 		if (print_log) {
-			const safe_url = req.path ? req.path : 'n/a';		// no longer need to encodeURI(path), automatically done
+			const safe_url = req.path ? req.path : 'n/a';				// no longer need to encodeURI(path), automatically done
 			logger.silly('--------------------------------- incoming request ---------------------------------');
 			logger.info('[' + req._tx_id + '] New ' + req.method + ' request for url:', safe_url);
 		}
-		next();
-	});
+		if (err) {
+			return next(err, req, res);									// pass the error on
+		} else {
+			return next();
+		}
+	}
 }
 
 //---------------------

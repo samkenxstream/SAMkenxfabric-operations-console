@@ -66,7 +66,7 @@ const ev = {
 	DESIGN_DOC: DESIGN_DOC,
 	AUTH_SCHEME: 'appid',
 	HOST_URL: 'http://localhost:3000',
-	HOST_WHITE_LIST: ['.*'],
+	URL_SAFE_LIST: ['.*'],
 	SESSION_CACHE_ENABLED: true,
 	CONFIGTXLATOR_URL_ORIGINAL: 'http://localhost:3000',
 	STR: {
@@ -206,7 +206,7 @@ const ev = {
 	MAX_USERNAME_LEN: 64,
 	REGEX: default_settings.regex,
 	GRPCWPP_TIMEOUT: 300000,
-	ACTIVITY_TRACKER_PATH: './logs',
+	ACTIVITY_TRACKER_FILENAME: './logs',
 	LOCKOUT_LIMIT: 4,
 	HTTP_METRICS_ROUTE: '/api/v[123]/http_metrics',
 	HEALTHCHECK_ROUTE: '/api/v3/healthcheck',

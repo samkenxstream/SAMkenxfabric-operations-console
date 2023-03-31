@@ -67,7 +67,7 @@ module.exports = function (logger, t) {
 
 	// restart athena - use caution! - note this function returns before the restart
 	exports.restart_athena = function (uuid) {
-		const date = t.misc.formatDate(Date.now(), '%M/%d/%Y %H:%m');
+		const date = t.misc.formatDate(Date.now(), '%Y/%M/%d-%H:%m:%s.%rZ');
 		const LOG_PATH = 'logs/athena_restart.log';							// must match what is in server_watcher.js
 		const restart_path = t.path.join(__dirname, '../' + LOG_PATH);
 
@@ -180,20 +180,20 @@ module.exports = function (logger, t) {
 	};
 
 	//-------------------------------------------------------------
-	// Check if host in url matches whitelist
+	// Check if url matches the url whitelist
 	//-------------------------------------------------------------
 	exports.validateUrl = (url, white_list_regex_array) => {
-		const host = t.misc.get_host(url);
-		if (host && Array.isArray(white_list_regex_array)) {
+		const url_str = t.misc.fmt_url(url);
+		if (url_str && Array.isArray(white_list_regex_array)) {
 			for (let i in white_list_regex_array) {
 				const regex = RegExp(white_list_regex_array[i]);
-				const match = regex.test(host);
+				const match = regex.test(url_str);
 				if (match) {
 					return true;
 				}
 			}
 		}
-		logger.warn('[ot_misc] this hostname was not found in safelist', encodeURI(host));
+		logger.warn('[ot_misc] this url was not found in safelist', encodeURI(url_str));
 		return false;
 	};
 

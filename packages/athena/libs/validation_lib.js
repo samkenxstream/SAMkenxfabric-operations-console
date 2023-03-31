@@ -605,7 +605,7 @@ module.exports = (logger, ev, t, opts) => {
 
 		// check for valid cpu values
 		if (body_spec.type === 'string' && body_spec['x-validate_cpu'] === true) {
-			let error = t.misc.invalid_cpu_value(input, body_spec['maximum'], body_spec['minimum']);
+			let error = t.misc.invalid_cpu_value(input, body_spec['x-maximum'], body_spec['x-minimum']);
 			if (error) {
 				const symbols = {
 					'$PROPERTY_NAME': path2field.join('.'),
@@ -616,7 +616,7 @@ module.exports = (logger, ev, t, opts) => {
 
 		// check for valid memory values
 		if (body_spec.type === 'string' && body_spec['x-validate_memory'] === true) {
-			let error = t.misc.invalid_bytes_value(input, body_spec['maximum'], body_spec['minimum']);
+			let error = t.misc.invalid_bytes_value(input, body_spec['x-maximum'], body_spec['x-minimum']);
 			if (error) {
 				const symbols = {
 					'$PROPERTY_NAME': path2field.join('.'),
@@ -627,7 +627,7 @@ module.exports = (logger, ev, t, opts) => {
 
 		// check for valid storage values
 		if (body_spec.type === 'string' && body_spec['x-validate_storage'] === true) {
-			let error = t.misc.invalid_bytes_value(input, body_spec['maximum'], body_spec['minimum']);
+			let error = t.misc.invalid_bytes_value(input, body_spec['x-maximum'], body_spec['x-minimum']);
 			if (error) {
 				const symbols = {
 					'$PROPERTY_NAME': path2field.join('.'),
@@ -756,7 +756,14 @@ module.exports = (logger, ev, t, opts) => {
 
 		// check if the hostname is in our whitelist or not
 		if (input && body_spec['x-validate_known_hostname'] === true) {
-			if (!t.ot_misc.validateUrl(input, req._whitelist || ev.HOST_WHITE_LIST)) {
+			let url_str = input;
+			const regex = new RegExp(/:\d{1,5}$/, 'i');
+			if (!regex.test(input)) {														// if no port in input find "port" field in body
+				const path2parent = path2field.slice(0, path2field.length - 1).join('.');			// get path to the parent object
+				const port = t.misc.safe_dot_nav(req_body, 'req_body.' + path2parent + '.port');	// get the value of "port" in req body
+				url_str = input + ':' + port;
+			}
+			if (!t.ot_misc.validateUrl(url_str, req._whitelist || ev.URL_SAFE_LIST)) {
 				const symbols = {
 					'$PROPERTY_NAME': path2field.join('.'),
 				};

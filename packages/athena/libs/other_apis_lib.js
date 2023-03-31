@@ -105,7 +105,7 @@ module.exports = function (logger, ev, t) {
 			},
 			THE_DEFAULT_RESOURCES_MAP: ev.THE_DEFAULT_RESOURCES_MAP || '?',
 			TRUST_PROXY: ev.TRUST_PROXY, 						// false is valid, don't make this a question mark
-			ACTIVITY_TRACKER_PATH: ev.ACTIVITY_TRACKER_PATH || '?',
+			ACTIVITY_TRACKER_FILENAME: ev.ACTIVITY_TRACKER_FILENAME || '?',
 			HSM: ev.HSM,										// false is valid, don't make this a question mark
 			LDAP: {
 				SEARCH_BASE: ev.LDAP.SEARCH_BASE || '?',
@@ -165,7 +165,7 @@ module.exports = function (logger, ev, t) {
 			JUPITER_URL: ev.JUPITER_URL || '?',					// for OpTools developers show the un-redacted url
 			//DEFAULT_USER_PASSWORD: ev.DEFAULT_USER_PASSWORD,	// for debug
 			SESSION_SECRET: ev.SESSION_SECRET,					// for debug
-			HOST_WHITE_LIST: ev.HOST_WHITE_LIST || [],			// for debug, moved this here from get_ev_settings so we don't leak component addresses
+			URL_SAFE_LIST: ev.URL_SAFE_LIST || [],				// for debug, moved this here from get_ev_settings so we don't leak component addresses
 			CONFIGTXLATOR_URL_ORIGINAL: ev.CONFIGTXLATOR_URL_ORIGINAL || '?',
 			COOKIE_NAME: ev.COOKIE_NAME || '?',
 			MIGRATION_API_KEY: ev.MIGRATION_API_KEY,			// for debug
